@@ -1,0 +1,7 @@
+{
+  "produtos": [
+    {"id": 1, "nome": "Bolo de Maça com Canela", "preco": 38.00},
+    {"id": 2, "nome": "Bolo de Chocolate com Laranja", "preco": 36.00},
+    {"id": 3, "nome": "Bolo de Laranja", "preco": 26.00}
+  ]
+}

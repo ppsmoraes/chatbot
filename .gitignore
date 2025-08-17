@@ -1,0 +1,10 @@
+### Python ###
+# Byte-compiled
+__pycache__/
+
+# Environments
+.env
+.venv
+
+# mypy
+.mypy_cache/
