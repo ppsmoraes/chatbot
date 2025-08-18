@@ -3,23 +3,27 @@
     {
       "tag": "apresentacao",
       "patterns": [],
-      "responses": [
-        "🍰 *Olá! Eu sou o assistente do Vô Romário - Casa de Bolos!* 🍰\nComo posso te ajudar hoje?\n📜 Ver Menu\n🎂 Fazer Pedido\n👨‍🍳 Falar com Atendente"
-      ]
+      "responses": ["🍰 *Olá! Eu sou o assistente do Vô Romário - Casa de Bolos!* 🍰\nComo posso te ajudar hoje?"]
     },
     {
       "tag": "ver_menu",
-      "patterns": ["1", "menu", "cardapio"],
+      "patterns": ["menu", "cardapio"],
       "responses": ["{menu}"]
     },
     {
+      "tag": "compra",
+      "patterns": ["pedido", "comprar", "querer", "quero", "gostaria"],
+      "responses": ["{pedido}"],
+      "context_set": ["comprar"]
+    },
+    {
       "tag": "atendente",
-      "patterns": ["2", "3", "atendente", "humano", "pedido", "comprar", "querer", "quero"],
+      "patterns": ["atendente", "humano", "falar"],
       "responses": ["Ótimo! Vou chamar o Vô.", "Um momento, já chamo o atendente! 📞"]
     },
     {
       "tag": "despedida",
-      "patterns": ["Tchau", "Até logo", "Sair"],
+      "patterns": ["Tchau", "Até logo", "Sair", "Xau"],
       "responses": ["Até mais!", "Volte sempre!", "Até mais! Volte sempre ao Vô Romário! 🎂"],
       "context_set": ["desligar"]
     }
