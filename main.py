@@ -133,6 +133,7 @@ class ChatbotVoRomario:
             norm_name: str = self.normalize(original_name)
 
             # tenta extrair a parte depois de "bolo(s) de "
+            # TODO Resolver essa type hint
             m: Match[str] | None = re.search(r'\bbolos?\s+de\s+(.+)', norm_name)
             phrase: str = m.group(1).strip() if m else norm_name
 
