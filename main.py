@@ -52,7 +52,7 @@ class ChatbotVoRomario:
         Parameters
         ----------
         intents_file_path : str, optional
-            Caminho do arquivo, por padrão é 'intents.json'
+            Caminho do arquivo, por padrão é 'intents.json'.
 
         Returns
         -------
@@ -133,8 +133,8 @@ class ChatbotVoRomario:
             norm_name: str = self.normalize(original_name)
 
             # tenta extrair a parte depois de "bolo(s) de "
-            # TODO Resolver essa type hint
-            m: Match[str] | None = re.search(r'\bbolos?\s+de\s+(.+)', norm_name)
+            # TODO Incluir type hint
+            m = re.search(r'\bbolos?\s+de\s+(.+)', norm_name)
             phrase: str = m.group(1).strip() if m else norm_name
 
             # keywords = tokens da frase sem stopwords comuns
@@ -157,29 +157,42 @@ class ChatbotVoRomario:
     # ----------------------------
     # Extração de entidades (pedido)
     # ----------------------------
-    # TODO Valide essas extrações
     def extrair_quantidade(self, text_norm: str) -> int | None:
-        # Casos especiais: "meia dúzia", "uma dúzia"
+        """
+        Extrai o valor númerico da expressão.
+
+        Essa função não busca valores acima de vinte (se dado por extenso) e nem aima de 99 se dado numéricamente.
+
+        Parameters
+        ----------
+        text_norm : str
+            O texto normalizado.
+
+        Returns
+        -------
+        int | None
+            Se houver, retorna o valor númerico da expressão, caso contrário, retrona ``None``.
+        """
+        # Dúzias
         if re.search(r'\bmeia\s+d[uú]zia\b', text_norm):
             return 6
         if re.search(r'\b(um|uma)\s+d[uú]zia\b', text_norm):
             return 12
 
         # Dígitos
-        m = re.search(r'\b(\d{1,3})\b', text_norm)
+        m = re.search(r'\b(\d{1,2})\b', text_norm)  # Busca números de 1 ou 2 dígitos
         if m:
             try:
                 return int(m.group(1))
             except ValueError:
                 pass
 
-        # Números por extenso (básico)
+        # Números por extenso
         num_words = {
             'um': 1,
             'uma': 1,
             'dois': 2,
             'duas': 2,
-            'tres': 3,
             'tres': 3,
             'quatro': 4,
             'cinco': 5,
@@ -190,12 +203,23 @@ class ChatbotVoRomario:
             'dez': 10,
             'onze': 11,
             'doze': 12,
+            'treze': 13,
+            'quatorze': 14,
+            'catore': 14,
+            'quinze': 15,
+            'dezesseis': 16,
+            'dezessete': 17,
+            'dezoito': 18,
+            'dezenove': 19,
+            'vinte': 20,
         }
+        # TODO Fazer busca valores com mais de uma palavra, por exemplo: "vinte e dois".
         for w, n in num_words.items():
             if re.search(fr'\b{w}\b', text_norm):
                 return n
         return None
 
+    # TODO Valide essas extrações
     def extrair_sabor(self, text_norm: str) -> dict | None:
         """
         Tenta identificar o produto/sabor mais provável com base no menu.
@@ -256,10 +280,7 @@ class ChatbotVoRomario:
     # ----------------------------
     def bot_presentation(self) -> None:
         """Mostra a mensagem inicial automaticamente"""
-        # TODO Deixe essa docstring no padrão numpy.
-        presetation_intent = next(
-            intent for intent in self.intents if intent['tag'] == 'apresentacao'
-        )
+        presetation_intent = next(i for i in self.intents if i['tag'] == 'apresentacao')
         print('🤖: ' + random.choice(presetation_intent['responses']))
 
     def buy_request(self, user_input: str) -> str:
