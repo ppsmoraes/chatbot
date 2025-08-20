@@ -1,20 +1,24 @@
 # TODO Adicionar docstring
-
 import json
 import random
 import re
-import string
 import unicodedata
+from string import punctuation
 
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
+try:
+    from nltk.corpus import stopwords
 
-# TODO Utilize no formato try...execpt
-# # Baixa dados do NLTK (executar uma vez)
-# import nltk
-# nltk.download('punkt')
-# nltk.download('stopwords')
-# nltk.download('punkt_tab')
+    stopwords.words('portuguese')
+    del stopwords
+except LookupError:
+    import nltk
+
+    nltk.download('stopwords', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
+    del nltk
+finally:
+    from nltk.corpus import stopwords
+    from nltk.tokenize import word_tokenize
 
 
 class ChatbotVoRomario:
@@ -102,7 +106,7 @@ class ChatbotVoRomario:
 
     def normalize(self, text: str) -> str:
         text = text.lower()
-        text = text.translate(str.maketrans('', '', string.punctuation))
+        text = text.translate(str.maketrans('', '', punctuation))
         text = ''.join(
             c
             for c in unicodedata.normalize('NFD', text)
@@ -219,29 +223,18 @@ class ChatbotVoRomario:
                 return n
         return None
 
-    # TODO Valide essas extrações
     def extrair_sabor(self, text_norm: str) -> dict | None:
         """
         Tenta identificar o produto/sabor mais provável com base no menu.
         Retorna: {'produto': <nome do produto>, 'sabor': <frase de sabor normalizada>}
         """
         # TODO Deixe essa docstring no padrão numpy.
-        if not self.flavor_index:
-            # Fallback simples: pega o que vier depois de "de "
-            m = re.search(r'\bde\s+([\w\s]{1,40})', text_norm)
-            if m:
-                return {
-                    'produto': m.group(1).strip().title(),
-                    'sabor': m.group(1).strip(),
-                }
-            return None
-
-        tokens = set(re.findall(r'\w+', text_norm))
-        best = None
-        best_score = 0
+        tokens: set[str] = set(re.findall(r'\w+', text_norm))
+        best: None | dict = None
+        best_score: int = 0
 
         for item in self.flavor_index:
-            score = 0
+            score: int = 0
 
             # Pontos por "frase" aparecer como substring
             if item['phrase'] and item['phrase'] in text_norm:
@@ -249,6 +242,7 @@ class ChatbotVoRomario:
 
             # Pontos por keywords encontradas nos tokens do usuário
             if item['keywords']:
+                # TODO 3 é o melhor fator a ser utilizado?
                 score += len(item['keywords'] & tokens) * 3
 
             if score > best_score:
@@ -260,17 +254,17 @@ class ChatbotVoRomario:
         return None
 
     def extrair_pedido(self, frase: str) -> dict | None:
-        text_norm = self.normalize(frase)
+        text_norm: str = self.normalize(frase)
 
-        quantidade = self.extrair_quantidade(text_norm)
-        sabor_info = self.extrair_sabor(text_norm)
+        qtd: int | None = self.extrair_quantidade(text_norm)
+        sabor_info: dict | None = self.extrair_sabor(text_norm)
 
-        if quantidade is None and sabor_info is None:
+        if qtd is None and sabor_info is None:
             return None
 
-        pedido = {}
-        if quantidade is not None:
-            pedido['quantidade'] = quantidade
+        pedido: dict = {}
+        if qtd is not None:
+            pedido['quantidade'] = qtd
         if sabor_info is not None:
             pedido.update(sabor_info)  # adiciona 'produto' e 'sabor'
         return pedido
@@ -283,8 +277,9 @@ class ChatbotVoRomario:
         presetation_intent = next(i for i in self.intents if i['tag'] == 'apresentacao')
         print('🤖: ' + random.choice(presetation_intent['responses']))
 
+    # TODO Valide esse método
     def buy_request(self, user_input: str) -> str:
-        pedido = self.extrair_pedido(user_input)
+        pedido: dict | None = self.extrair_pedido(user_input)
 
         if not pedido:
             return 'Entendi que você quer comprar. Pode me dizer a **quantidade** e o **sabor**? 🙂'
@@ -312,7 +307,8 @@ class ChatbotVoRomario:
                 if intent.get('context_set'):
                     self.context = {k: True for k in intent['context_set']}
 
-                if bot.context.get('comprar'):
+                if self.context.get('comprar'):
+                    # TODO Construa esse código
                     print(self.flavor_index)
                     # self.build_flavor_index()
                     # return self.buy_request(user_input)
@@ -323,10 +319,14 @@ class ChatbotVoRomario:
         return 'Desculpe, não entendi.'
 
 
-if __name__ == '__main__':
+def main() -> None:
     bot: ChatbotVoRomario = ChatbotVoRomario()
 
     while not bot.context.get('desligar'):
         user_input: str = input('Você: ')
         response: str = bot.get_response(user_input)
         print(f'🤖: {response}')
+
+
+if __name__ == '__main__':
+    main()
