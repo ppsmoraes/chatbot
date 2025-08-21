@@ -1,4 +1,16 @@
-# TODO Adicionar docstring
+"""Chatbot simples para o "Vô Romário".
+
+Este módulo implementa a classe ChatbotVoRomario que carrega um menu e intents
+a partir de arquivos JSON, realiza pré-processamento básico de texto em português,
+extrai pedidos (quantidade + sabor) e mantém um contexto simples de conversa.
+
+Observações
+---------
+- Uso de NLTK para tokenização e stopwords.
+- Estrutura de intents esperada: {"intents": [{"tag": ..., "patterns": [...], "responses": [...]}]}
+- Estrutura do menu esperada: {"produtos": [{"nome": ..., "preco": ...}, ...]}
+"""
+
 import json
 import random
 import re
@@ -6,24 +18,54 @@ import unicodedata
 from string import punctuation
 
 try:
-    from nltk.corpus import stopwords
+    from nltk.corpus import stopwords  # type: ignore[import]
 
     stopwords.words('portuguese')
     del stopwords
 except LookupError:
-    import nltk
+    import nltk  # type: ignore[import]
 
     nltk.download('stopwords', quiet=True)
     nltk.download('punkt_tab', quiet=True)
     del nltk
 finally:
     from nltk.corpus import stopwords
-    from nltk.tokenize import word_tokenize
+    from nltk.tokenize import word_tokenize  # type: ignore[import]
 
 
 class ChatbotVoRomario:
+    """Chatbot para atender pedidos do menu do "Vô Romário".
+
+    A classe carrega intents e produtos, constrói um índice de sabores a partir
+    do nome dos produtos e fornece métodos para pré-processar texto, extrair
+    entidades (quantidade, sabor) e gerar respostas simples com base em intents
+    e contexto.
+
+    Atributos
+    ---------
+    intents : list[dict]
+        Lista de intents carregadas do arquivo de intents.
+    products : list[dict]
+        Lista de produtos carregados do arquivo de menu.
+    flavor_index : list[dict]
+        Índice construído a partir dos nomes dos produtos para ajudar a identificar sabores.
+    data : dict
+        Dados usados para formatação de respostas (ex.: menu como string).
+    context : dict
+        Dicionário que armazena o estado/contexto atual da conversa.
+    """
+
     def __init__(self) -> None:
-        # TODO Adicionar docstring
+        """Inicializa o ChatbotVoRomario.
+
+        A inicialização realiza as seguintes ações:
+        - carrega as intents a partir de 'intents.json';
+        - carrega os produtos a partir de 'menu.json';
+        - constrói um índice de sabores a partir dos nomes dos produtos;
+        - prepara o dicionário `data` com a representação em texto do menu;
+        - inicializa o contexto da conversa;
+        - exibe a apresentação do bot (chama bot_presentation).
+        """
         self.intents: list[dict] = self.load_intents()
         self.products: list[dict] = self.load_products()
         self.flavor_index: list[dict] = self.build_flavor_index(self.products)
@@ -35,23 +77,23 @@ class ChatbotVoRomario:
     # Utilidades de dados/arquivos
     # ----------------------------
     def load_json(self, file_path: str) -> dict:
-        """Abre um arquivo json e retorna seu conteúdo.
+        """Abre um arquivo JSON e retorna seu conteúdo.
 
         Parameters
         ----------
         file_path : str
-            O caminho do arquivo.
+            Caminho do arquivo JSON.
 
         Returns
         -------
         dict
-            O conteúdo do json.
+            Conteúdo do arquivo JSON desserializado.
         """
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.load(file)
 
     def load_intents(self, intents_file_path: str = 'intents.json') -> list[dict]:
-        """Abre o arquivo de intents e retorna seu conteúdo.
+        """Carrega intents a partir de um arquivo JSON.
 
         Parameters
         ----------
@@ -61,12 +103,12 @@ class ChatbotVoRomario:
         Returns
         -------
         list[dict]
-            A lista de intents.
+            Lista de intents. Retorna lista vazia se a chave 'intents' não existir.
         """
         return self.load_json(intents_file_path).get('intents', [])
 
     def load_products(self, menu_file_path: str = 'menu.json') -> list[dict]:
-        """Abre o arquivo do menu e retorna seu conteúdo.
+        """Carrega produtos do menu a partir de um arquivo JSON.
 
         Parameters
         ----------
@@ -76,18 +118,18 @@ class ChatbotVoRomario:
         Returns
         -------
         list[dict]
-            A lista de produtos.
+            Lista de produtos (cada produto é um dicionário).
         """
         # TODO Use um banco de dados relacionais (sql-based) no lugar de um json.
         return self.load_json(menu_file_path).get('produtos', [])
 
     def load_str_menu(self) -> str:
-        """Retorna o menu em formato de texto.
+        """Gera uma representação em texto do menu para ser usada em respostas.
 
         Returns
         -------
         str
-            O menu formatado para texto.
+            Texto formatado contendo o nome e preço de cada produto.
         """
         string_menu = '\n'.join(
             [f'{b['nome']} - R${b['preco']:.2f}' for b in self.products]
@@ -100,11 +142,37 @@ class ChatbotVoRomario:
     # TODO Crie as docstrings de todos os métodos/funções daqui pra baixo
     @property
     def stop_words(self) -> set[str]:
+        """Conjunto de stopwords em português.
+
+        O resultado é cacheado no atributo privado _stop_words na primeira chamada.
+
+        Returns
+        -------
+        set[str]
+            Conjunto de palavras a serem ignoradas durante o pré-processamento.
+        """
         if not hasattr(self, '_stop_words'):
             self._stop_words: set[str] = set(stopwords.words('portuguese'))
         return self._stop_words
 
     def normalize(self, text: str) -> str:
+        """Normaliza o texto para facilitar comparação.
+
+        Operações realizadas:
+        - converte para minúsculas
+        - remove pontuação
+        - remove acentuação (normalização Unicode NFD e remoção de marcas)
+
+        Parameters
+        ----------
+        text : str
+            Texto original.
+
+        Returns
+        -------
+        str
+            Texto normalizado.
+        """
         text = text.lower()
         text = text.translate(str.maketrans('', '', punctuation))
         text = ''.join(
@@ -115,6 +183,18 @@ class ChatbotVoRomario:
         return text
 
     def preprocess_text(self, text: str) -> list[str]:
+        """Tokeniza e remove stopwords de uma string normalizada.
+
+        Parameters
+        ----------
+        text : str
+            Texto de entrada (pode ser não-normalizado; a função chama normalize()).
+
+        Returns
+        -------
+        list[str]
+            Lista de tokens úteis (sem stopwords).
+        """
         tokens: list[str] = word_tokenize(self.normalize(text), language='portuguese')
         result: list[str] = [word for word in tokens if word not in self.stop_words]
         return result
@@ -123,14 +203,30 @@ class ChatbotVoRomario:
     # Índice de sabores a partir do menu
     # ----------------------------
     def build_flavor_index(self, products: list[dict]) -> list[dict]:
-        """Cria um índice com possíveis frases/keywords de sabores baseadas no 'nome' de cada produto.
+        """Cria um índice de sabores a partir dos nomes dos produtos.
+
+        Para cada produto cria um dicionário com:
+        - 'original': nome original exibido no menu
+        - 'phrase': parte relevante do nome (normalizada), por exemplo a parte após "bolo(s) de"
+        - 'keywords': conjunto de palavras-chave extraídas da phrase (stopwords removidas)
+
+        Parameters
+        ----------
+        products : list[dict]
+            Lista de produtos (cada um deve ter a chave 'nome').
+
+        Returns
+        -------
+        list[dict]
+            Índice de sabores usado para identificar correspondências em mensagens de usuários.
 
         Examples
         --------
-        'Bolo de Maçã' -> phrase='maca', keywords={'maca'}
-        'Bolo de Doce de Leite' -> phrase='doce de leite', keywords={'doce', 'leite'}
+        'Bolo de Maçã' -> {'original': 'Bolo de Maçã', 'phrase': 'maca', 'keywords': {'maca'}}
+        'Bolo de Doce de Leite' -> {'original': 'Bolo de Doce de Leite',
+                                     'phrase': 'doce de leite',
+                                     'keywords': {'doce', 'leite'}}
         """
-        # TODO Deixe essa docstring no padrão numpy.
         index: list[dict] = []
         for p in products:
             original_name: str = p.get('nome')
@@ -162,20 +258,22 @@ class ChatbotVoRomario:
     # Extração de entidades (pedido)
     # ----------------------------
     def extrair_quantidade(self, text_norm: str) -> int | None:
-        """
-        Extrai o valor númerico da expressão.
+        """Extrai a quantidade solicitada no texto normalizado.
 
-        Essa função não busca valores acima de vinte (se dado por extenso) e nem aima de 99 se dado numéricamente.
+        A função reconhece:
+        - expressões como "meia dúzia" (6) e "uma dúzia" (12)
+        - números escritos como dígitos (até 2 dígitos)
+        - números por extenso básicos (até vinte)
 
         Parameters
         ----------
         text_norm : str
-            O texto normalizado.
+            Texto já normalizado (minúsculas, sem acento/pontuação).
 
         Returns
         -------
         int | None
-            Se houver, retorna o valor númerico da expressão, caso contrário, retrona ``None``.
+            Quantidade encontrada ou None se não houver indicação.
         """
         # Dúzias
         if re.search(r'\bmeia\s+d[uú]zia\b', text_norm):
@@ -224,11 +322,24 @@ class ChatbotVoRomario:
         return None
 
     def extrair_sabor(self, text_norm: str) -> dict | None:
+        """Identifica o sabor/produto mais provável a partir do texto.
+
+        A função compara tokens do texto com o índice de sabores e calcula uma
+        pontuação baseada em:
+        - ocorrência direta da 'phrase' no texto
+        - número de keywords em comum (peso aplicado)
+
+        Parameters
+        ----------
+        text_norm : str
+            Texto já normalizado.
+
+        Returns
+        -------
+        dict | None
+            Se encontrado, retorna {'produto': nome_exibido, 'sabor': frase_normalizada}.
+            Caso contrário, retorna None.
         """
-        Tenta identificar o produto/sabor mais provável com base no menu.
-        Retorna: {'produto': <nome do produto>, 'sabor': <frase de sabor normalizada>}
-        """
-        # TODO Deixe essa docstring no padrão numpy.
         tokens: set[str] = set(re.findall(r'\w+', text_norm))
         best: None | dict = None
         best_score: int = 0
@@ -254,6 +365,19 @@ class ChatbotVoRomario:
         return None
 
     def extrair_pedido(self, frase: str) -> dict | None:
+        """Extrai um pedido (quantidade e/ou sabor) de uma frase livre.
+
+        Parameters
+        ----------
+        frase : str
+            Frase original do usuário.
+
+        Returns
+        -------
+        dict | None
+            Dicionário com chaves possíveis: 'quantidade', 'produto', 'sabor'.
+            Retorna None se não for possível extrair quantidade nem sabor.
+        """
         text_norm: str = self.normalize(frase)
 
         qtd: int | None = self.extrair_quantidade(text_norm)
@@ -273,12 +397,27 @@ class ChatbotVoRomario:
     # Fluxo de conversa
     # ----------------------------
     def bot_presentation(self) -> None:
-        """Mostra a mensagem inicial automaticamente"""
+        """Exibe a mensagem de apresentação do bot na inicialização."""
         presetation_intent = next(i for i in self.intents if i['tag'] == 'apresentacao')
         print('🤖: ' + random.choice(presetation_intent['responses']))
 
     # TODO Valide esse método
     def buy_request(self, user_input: str) -> str:
+        """Processa um pedido quando o usuário demonstra intenção de comprar.
+
+        Extrai quantidade e sabor a partir do texto; atualiza o contexto com o
+        pedido identificado e retorna uma frase de confirmação/solicitação de mais dados.
+
+        Parameters
+        ----------
+        user_input : str
+            Texto do usuário contendo o pedido.
+
+        Returns
+        -------
+        str
+            Mensagem de retorno do bot (pede esclarecimento se necessário ou confirma o pedido).
+        """
         pedido: dict | None = self.extrair_pedido(user_input)
 
         if not pedido:
@@ -292,6 +431,21 @@ class ChatbotVoRomario:
         return f"Anotei: {qtd_txt}{prod_txt}. Confere?"
 
     def get_response(self, user_input: str) -> str:
+        """Gera uma resposta com base nas intents e no contexto atual.
+
+        O método pré-processa a entrada do usuário, tenta casar com intents
+        (respeitando filtros de contexto) e retorna uma resposta formatada.
+
+        Parameters
+        ----------
+        user_input : str
+            Texto inserido pelo usuário.
+
+        Returns
+        -------
+        str
+            Resposta selecionada (ou mensagem padrão se não houver correspondência).
+        """
         processed_input: list[str] = self.preprocess_text(user_input)
 
         for intent in self.intents:
@@ -320,6 +474,7 @@ class ChatbotVoRomario:
 
 
 def main() -> None:
+    """Ponto de entrada do programa: inicializa o bot e interage em loop com o usuário."""
     bot: ChatbotVoRomario = ChatbotVoRomario()
 
     while not bot.context.get('desligar'):
